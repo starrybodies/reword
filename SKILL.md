@@ -1,6 +1,6 @@
 ---
 name: reword
-description: Make agent writing sound like its author. Build and evolve a saved voice from chosen writing samples, relevant copy, author revisions and explicit preferences. Use for learning my voice, personalized drafting, humanizing, rewriting, voice matching, destination-aware style and prose review.
+description: Learn the author's writing voice and make agent writing sound like them. Build and evolve a saved voice profile from chosen writing samples, relevant copy, author revisions and explicit preferences. Use for learning my voice, writing in my style, personalized drafting, humanizing, rewriting, voice matching, destination-aware style and prose review.
 ---
 
 # Reword
