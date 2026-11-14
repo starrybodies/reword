@@ -25,6 +25,7 @@ MAX_HISTORY = 32
 MAX_RECORDS = 10_000
 MAX_TEXT_CHARS = 2_000_000
 MAX_REVISION = 2**63 - 1
+MAX_SYSTEM_LINKS = 8
 _STORE_FIELDS = {
     "schema_version", "name", "revision", "learning_enabled", "samples", "feedback",
     "profiles", "history", "profile_version", "pending_evidence_ids",
@@ -439,7 +440,18 @@ def _target(path) -> Path:
 
 
 def _parents(target: Path, *, create: bool = False) -> None:
-    for component in reversed(target.parents):
+    # Walk the physical path one component at a time. Root-owned links are system
+    # layout (/var on macOS, /home on Fedora Atomic) and are followed, with every
+    # component of their destination vetted the same way; any other link is refused.
+    current = Path(target.anchor)
+    pending = list(reversed(target.parent.parts[1:]))
+    followed = 0
+    while pending:
+        part = pending.pop()
+        if part == "..":
+            current = current.parent
+            continue
+        component = current / part
         try:
             metadata = component.lstat()
         except FileNotFoundError:
@@ -451,9 +463,17 @@ def _parents(target: Path, *, create: bool = False) -> None:
                 pass
             metadata = component.lstat()
         if stat.S_ISLNK(metadata.st_mode):
-            raise ValueError("Collection paths must not contain symlinks.")
+            followed += 1
+            if os.name != "posix" or metadata.st_uid != 0 or followed > MAX_SYSTEM_LINKS:
+                raise ValueError("Collection paths must not contain symlinks.")
+            destination = Path(os.readlink(component))
+            if destination.is_absolute():
+                current = Path(destination.anchor)
+            pending.extend(reversed(destination.parts[1:] if destination.is_absolute() else destination.parts))
+            continue
         if not stat.S_ISDIR(metadata.st_mode):
             raise ValueError("Collection parent must be a directory.")
+        current = component
 
 
 def _private(metadata) -> None:
