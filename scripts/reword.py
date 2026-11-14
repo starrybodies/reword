@@ -23,7 +23,7 @@ from voice_context import (DESTINATIONS, STYLE_CHOICES, compact_voice, render_st
 from examples import select_examples
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 MODES = {
     "light": "Fix friction with the fewest necessary edits. Keep the structure.",
     "rewrite": "Improve sentences and paragraph flow; retain useful structure.",
