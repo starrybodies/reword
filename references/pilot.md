@@ -4,7 +4,7 @@ Use the installed skill in your own harness and with your own model. This pilot
 collects your experience of using Reword, not a blind comparison or evidence of
 superiority over another tool. A formal comparison can follow separately.
 
-1. Follow [INSTALL.md](../INSTALL.md). Confirm version `0.5.1`, then invoke
+1. Follow [INSTALL.md](../INSTALL.md). Confirm version `0.5.2`, then invoke
    `/reword` in Claude Code, `$reword` in Codex, or select Reword with `@` in a
    supported ChatGPT skill interface.
 2. Supply three deliberately chosen pieces that you wrote. Pick pieces that
@@ -39,7 +39,7 @@ Suggested starting request:
 ## Feedback
 
 ```text
-Reword version: 0.5.1
+Reword version: 0.5.2
 Harness and version:
 Model (as shown in the harness):
 Installation issues, or "none":
