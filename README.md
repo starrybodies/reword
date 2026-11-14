@@ -1,6 +1,6 @@
 # Reword
 
-Reword learns from writing you choose and gives your agent a compact voice guide for drafting and editing. It fits the destination—an email, a message, a cover letter, a longer piece—and can remember your revisions and explicit preferences when you opt in.
+Reword is an open-source agent skill for Claude Code and Codex that learns your writing voice. Give it writing you choose, and it builds a compact voice profile your agent uses to draft and edit in your writing style. It fits the destination, such as an email, a message, a LinkedIn post, or a cover letter, and it can learn from your revisions and stated preferences when you opt in.
 
 [Installation](INSTALL.md) · [Commands](references/cli.md) · [Website](https://reword.symbai.studio/)
 
@@ -54,4 +54,4 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 The tests cover local runtime behavior, consent, persistence, bounded guidance, and content checks. They do not measure writing quality or voice fidelity.
 
-Made by [Symbai](https://symbai.studio/). Released under the [MIT license](LICENSE).
+Made by [Symbai Studios](https://symbai.studio/). Released under the [MIT license](LICENSE).
