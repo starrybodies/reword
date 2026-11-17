@@ -3,7 +3,12 @@ name: reword
 description: Learn the author's writing voice and make agent writing sound like them. Build and evolve a saved voice profile from chosen writing samples, relevant copy, author revisions and explicit preferences. Use for learning my voice, writing in my style, personalized drafting, humanizing, rewriting, voice matching, destination-aware style and prose review.
 ---
 
-# Reword
+# Reword: write in the author's voice
+
+Reword learns the author's writing voice from samples they choose and, with
+their consent, from their later corrections. It keeps a private voice profile
+and applies it whenever the agent drafts or edits for the author, fitted to
+where the text is going.
 
 Run bundled commands from the directory containing this file. Use Python 3.10+;
 the scripts use only the standard library and make no model or network calls.

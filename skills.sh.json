@@ -1,0 +1,10 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "groupings": [
+    {
+      "title": "Writing voice",
+      "description": "Learns your writing voice from samples you choose and from your corrections, then drafts and edits in that voice.",
+      "skills": ["reword"]
+    }
+  ]
+}
