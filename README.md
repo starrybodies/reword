@@ -6,7 +6,15 @@ Reword is an open-source agent skill for Claude Code and Codex that learns your 
 
 ## Install
 
-Clone the repository into your agent's skills folder. It works with a host agent that can read skill files, run **Python 3.10+**, and save private files. The helpers use only the Python standard library. Your agent's model performs the writing and voice distillation; Reword does not train a model or call a separate writing service.
+```bash
+npx skills add starrybodies/reword
+```
+
+The [skills CLI](https://skills.sh/starrybodies/reword) asks which agent to install for, and whether to install for you or for one project. It sends anonymous install telemetry to skills.sh (the skill name, its files, and a timestamp) unless you set `DISABLE_TELEMETRY=1`. Reword itself sends nothing anywhere.
+
+Reword works with a host agent that can read skill files, run **Python 3.10+**, and save private files. The helpers use only the Python standard library. Your agent's model performs the writing and voice distillation; Reword does not train a model or call a separate writing service.
+
+You can also clone the repository into your agent's skills folder:
 
 | Host | Install | Invoke |
 | --- | --- | --- |
@@ -14,7 +22,7 @@ Clone the repository into your agent's skills folder. It works with a host agent
 | Codex CLI or IDE | `git clone https://github.com/starrybodies/reword ~/.agents/skills/reword` | `$reword Build my voice` |
 | ChatGPT with supported skills | Import the [repository ZIP](https://github.com/starrybodies/reword/archive/refs/heads/main.zip) through Skills | Select Reword with `@` |
 
-Run `git pull` in that folder to update. The [skills CLI](https://skills.sh/) also works: `npx skills add starrybodies/reword`. See [INSTALL.md](INSTALL.md) for setup details and host limitations.
+To update, run `npx skills update`, or `git pull` in a cloned folder. See [INSTALL.md](INSTALL.md) for setup details and host limitations.
 
 ## Use it
 
@@ -53,5 +61,31 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 The tests cover local runtime behavior, consent, persistence, bounded guidance, and content checks. They do not measure writing quality or voice fidelity.
+
+## Questions
+
+### What is Reword?
+
+Reword is an open-source agent skill from Symbai Studios that makes an AI agent write in your voice. It builds a saved voice profile from writing samples you choose, and your agent uses that profile when it drafts or edits for you. Reword runs inside Claude Code, Codex, and other hosts that support folder-based skills, and it is free under the MIT license.
+
+### How is Reword different from a humanizer skill?
+
+A humanizer skill such as [blader/humanizer](https://github.com/blader/humanizer) edits a text to remove known signs of AI-generated writing, and it can match a writing sample you paste in for that edit. Reword keeps a saved voice profile built from samples you choose, and it reuses that profile in later sessions. Reword can also update the profile from your corrections when you opt in. The two skills do different jobs, and you can install both.
+
+### Does Reword learn from my corrections?
+
+Reword learns from your corrections when you opt in. It asks once before it saves later corrections and stated preferences, and it uses them to update your voice profile. You can inspect what is saved, pause learning, forget a piece of evidence, or restore an earlier version of the profile.
+
+### Where does Reword keep my writing samples and voice profile?
+
+Reword keeps your samples and voice profile in a private location that you choose, outside the skill folder and outside public repositories. The Python helpers make no model or network calls, and the skill has no telemetry. Your host agent's model still processes the text you give it, so that host's data rules apply.
+
+### Which agents does Reword work with?
+
+Reword works with Claude Code and with the Codex CLI and IDE extension. It also works in ChatGPT surfaces that support installed skills. Any other host needs to read skill files, run Python 3.10 or later, and save private files.
+
+### Can Reword write emails, LinkedIn posts, and text messages in my voice?
+
+Reword fits each draft to its destination, such as an email, a text message, a LinkedIn post, or a cover letter. You name the destination when you ask, and Reword applies your saved voice in the form that destination expects. Reword uses only the facts in your brief, and a writing sample never supplies facts for a new draft.
 
 Made by [Symbai Studios](https://symbai.studio/). Released under the [MIT license](LICENSE).
