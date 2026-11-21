@@ -10,7 +10,10 @@ import re
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DESTINATIONS = ("text-message", "chat", "email", "linkedin", "cover-letter", "essay", "web-copy", "general")
+DESTINATIONS = ("text-message", "chat", "email", "linkedin", "cover-letter", "essay", "web-copy", "agent", "general")
+AGENT = "agent"
+_CONTEXT_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+MAX_CONTEXT_NAME = 40
 STYLE_CHOICES = {
     "case": ("preserve", "sentence", "lowercase"),
     "punctuation": ("preserve", "standard", "light"),
@@ -25,6 +28,7 @@ _ALIASES = {
     "messaging": "chat", "instant-message": "chat", "dm": "chat",
     "e-mail": "email", "linkedin-post": "linkedin", "coverletter": "cover-letter",
     "website-copy": "web-copy", "website": "web-copy", "webpage": "web-copy",
+    "ai-agent": "agent", "llm": "agent", "prompt": "agent", "system-prompt": "agent", "subagent": "agent",
 }
 _SIGNALS = {
     "text-message": r"\b(?:text[ -]messages?|sms|imessage)\b",
@@ -34,7 +38,42 @@ _SIGNALS = {
     "cover-letter": r"\bcover[ -]?letter\b",
     "essay": r"\bessay\b",
     "web-copy": r"\b(?:web[ -]copy|website[ -]copy|landing[ -]page|webpage)\b",
+    # Name the artifact, not the topic: a post about agents is not written for one.
+    "agent": r"\b(?:system[ -]prompts?|(?:sub-?)?agent[ -](?:prompts?|briefs?|instructions?)|prompt for (?:an? |the |my )?(?:\w+ )?(?:agent|model|llm))\b",
 }
+
+
+def split_destination(value: str) -> tuple[str, str]:
+    """Return (channel, name) for a canonical destination; name is "" for a built-in channel.
+
+    A named context is written ``channel/name``, such as ``chat/family`` or
+    ``web-copy/acme``. It inherits its channel's conventions and keeps its own
+    evidence, preferences and learned traits.
+    """
+    if isinstance(value, str):
+        base, separator, name = value.partition("/")
+        if base in DESTINATIONS and (not separator or (
+                len(name) <= MAX_CONTEXT_NAME and _CONTEXT_NAME.fullmatch(name))):
+            return base, name
+    raise ValueError("Use a destination (" + ", ".join(DESTINATIONS) + ") or a named context such as chat/family: "
+                     f"a destination, a slash, then up to {MAX_CONTEXT_NAME} lowercase letters, digits or hyphens.")
+
+
+def canonical_destination(value: str) -> str:
+    """Validate a built-in destination or named context and return it unchanged."""
+    split_destination(value)
+    return value
+
+
+def base_destination(value: str) -> str:
+    """Return the built-in channel a destination or named context belongs to."""
+    return split_destination(value)[0]
+
+
+def destination_scopes(value: str) -> tuple[str, ...]:
+    """Layers that apply to a destination, broadest first: general, channel, named context."""
+    base = base_destination(value)
+    return tuple(dict.fromkeys(("general", base, value)))
 
 
 def _style_values(values: Mapping) -> dict:
@@ -50,9 +89,9 @@ def _style_values(values: Mapping) -> dict:
 
 def validate_context_preferences(mapping: Mapping) -> dict:
     """Validate profile.contexts and return a fresh, bounded canonical mapping."""
-    if not isinstance(mapping, Mapping) or any(key not in DESTINATIONS for key in mapping):
-        raise ValueError("contexts must map canonical destination names to style preference objects.")
-    return {key: _style_values(value) for key, value in mapping.items()}
+    if not isinstance(mapping, Mapping):
+        raise ValueError("contexts must map destinations or named contexts to style preference objects.")
+    return {canonical_destination(key): _style_values(value) for key, value in mapping.items()}
 
 
 def validate_voice_traits(mapping: Mapping) -> dict:
@@ -79,8 +118,16 @@ def _destinations() -> dict:
 
 
 def _canonical(destination: str) -> str:
-    normalized = re.sub(r"[\s_]+", "-", destination.strip().casefold())
-    return _ALIASES.get(normalized, normalized)
+    base, separator, name = re.sub(r"[\s_]+", "-", destination.strip().casefold()).partition("/")
+    return _ALIASES.get(base, base) + separator + name
+
+
+def _known(destination: str) -> bool:
+    try:
+        split_destination(destination)
+    except ValueError:
+        return False
+    return True
 
 
 def _infer(text: str, audience: str, purpose: str, context: str) -> tuple[str, str, str]:
@@ -121,23 +168,36 @@ def resolve_context(destination: str = "auto", *, text: str = "", audience: str 
     if requested == "auto":
         selected, confidence, reason = _infer(text, audience, purpose, context)
         source = "inferred" if confidence == "high" else "fallback"
-    elif requested in DESTINATIONS:
-        selected, source, confidence, reason = requested, "explicit", "explicit", "Explicit destination."
+    elif _known(requested):
+        selected, source, confidence = requested, "explicit", "explicit"
+        reason = "Explicit named context." if "/" in requested else "Explicit destination."
     else:
         selected, source, confidence, reason = "general", "fallback", "low", "Unknown destination; use general."
-    policy = _destinations()[selected]
-    style = {**policy["style"], **contexts.get("general", {}), **contexts.get(selected, {}), **overrides}
+    policy = _destinations()[base_destination(selected)]
+    style = dict(policy["style"])
+    for scope in destination_scopes(selected):
+        style.update(contexts.get(scope, {}))
+    style.update(overrides)
     return {"destination": selected, "style": style, "source": source, "confidence": confidence,
             "reason": reason, "guidance": policy["guidance"]}
 
 
 def render_style_card(resolved: Mapping) -> str:
     """Render model-facing guidance, never a mechanical capitalization filter."""
-    if not isinstance(resolved, Mapping) or resolved.get("destination") not in DESTINATIONS:
+    if not isinstance(resolved, Mapping) or not _known(resolved.get("destination")):
         raise ValueError("Render a resolved destination context.")
     style = _style_values(resolved.get("style"))
     if set(style) != set(STYLE_CHOICES):
         raise ValueError("A resolved style must contain every style preference.")
+    base, name = split_destination(resolved["destination"])
+    policy = _destinations()[base]
+    label = policy["label"] + (f" ({name})" if name else "")
+    named = "This is the author's named context; its saved preferences outrank the channel defaults. " if name else ""
+    if base == AGENT:
+        # A model reader has no use for the author's surface habits or prose voice.
+        return (f"{label}: {policy['guidance']} {named}Explicit preferences win. "
+                "Keep names, paths, commands, code, URLs, numbers and quoted text exact. "
+                "Never invent a requirement, path or criterion.")
     labels = {
         "case": {"preserve": "author's case", "sentence": "appropriate capitalization", "lowercase": "natural lowercase"},
         "punctuation": {"preserve": "author's punctuation", "standard": "standard punctuation", "light": "light punctuation"},
@@ -148,8 +208,7 @@ def render_style_card(resolved: Mapping) -> str:
     choices = "; ".join(labels[key][style[key]] for key in labels)
     regional = "Keep regional spelling" if style["regional_spelling"] == "preserve" else "Use " + style["regional_spelling"] + " spelling"
     card = (
-        f"{_destinations()[resolved['destination']]['label']}: {choices}. {regional}. "
-        f"{_destinations()[resolved['destination']]['guidance']} "
+        f"{label}: {choices}. {regional}. {policy['guidance']} {named}"
         "Actively match author character; explicit preferences win. "
         "Preserve proper names, acronyms, quotes, URLs/code and meaning-sensitive punctuation. "
         "Never invent typos, slang or intimacy. Adapt prose; never bulk-lowercase."
@@ -327,6 +386,10 @@ def compact_voice(profile: Mapping | None, destination: str | Mapping = "general
     # Validate caller-supplied resolved data even if the profile has no samples.
     render_style_card(resolved)
     result = {key: fields[key] for key in ("preferences", "avoid") if fields[key]}
+    if base_destination(resolved["destination"]) == AGENT:
+        if result:
+            result["apply"] = "Honor these explicit preferences. The author's prose voice does not apply to an agent reader."
+        return result
     if traits:
         result["traits"] = traits
     habits = _sample_habits(fields["samples"], resolved["style"])

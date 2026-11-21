@@ -3,7 +3,18 @@
 from pathlib import Path
 import json
 
-from voice_context import DESTINATIONS, compact_voice, render_style_card, resolve_context
+import argparse
+
+from voice_context import (AGENT, base_destination, canonical_destination, compact_voice,
+                           render_style_card, resolve_context)
+
+
+def destination_argument(value):
+    """argparse type: a built-in destination or a named context such as chat/family."""
+    try:
+        return canonical_destination(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
 
 
 COLLECTION_ACTIONS = {"onboard", "create", "add", "feedback", "learning", "refine", "update", "status", "export", "rollback", "forget"}
@@ -19,12 +30,12 @@ def register_collection_commands(actions):
     add.add_argument("collection")
     add.add_argument("file")
     add.add_argument("--role", choices=("authored", "reference"), default="authored")
-    add.add_argument("--destination", choices=DESTINATIONS, default="general")
+    add.add_argument("--destination", type=destination_argument, default="general")
     add.add_argument("--label", default="")
     feedback = actions.add_parser("feedback", help="Record author preferences or an author revision")
     feedback.add_argument("collection")
     feedback.add_argument("--kind", choices=("preference", "revision", "accept", "reject"), required=True)
-    feedback.add_argument("--destination", choices=DESTINATIONS, default="general")
+    feedback.add_argument("--destination", type=destination_argument, default="general")
     feedback.add_argument("--reason", default="")
     feedback.add_argument("--prefer", action="append", default=[])
     feedback.add_argument("--avoid", action="append", default=[])
@@ -38,7 +49,7 @@ def register_collection_commands(actions):
     consent.add_argument("--disabled", dest="enabled", action="store_false")
     refine = actions.add_parser("refine", help="Build a bounded voice-learning request; makes no model call")
     refine.add_argument("collection")
-    refine.add_argument("--destination", choices=DESTINATIONS, default="general")
+    refine.add_argument("--destination", type=destination_argument, default="general")
     refine.add_argument("--max-evidence-chars", type=int, default=12000)
     update = actions.add_parser("update", help="Apply a validated voice proposal to its exact learning request")
     update.add_argument("collection")
@@ -50,7 +61,7 @@ def register_collection_commands(actions):
     status.add_argument("--details", action="store_true", help="Include evidence labels and IDs, without their prose")
     export = actions.add_parser("export", help="Export a compact profile or portable voice card without the corpus")
     export.add_argument("collection")
-    export.add_argument("--destination", choices=DESTINATIONS, default="general")
+    export.add_argument("--destination", type=destination_argument, default="general")
     export.add_argument("--format", choices=("profile", "card"), default="profile")
     rollback = actions.add_parser("rollback", help="Restore a previous voice profile, keeping author evidence")
     rollback.add_argument("collection")
@@ -78,13 +89,15 @@ def _read_json(path):
 def render_voice_card(profile, destination="general"):
     resolved = resolve_context(destination, preferences=profile.get("contexts", {}))
     card = compact_voice(profile, destination=resolved)
-    parts = ["Use this chosen writing voice. " + render_style_card(resolved)]
+    agent = base_destination(resolved["destination"]) == AGENT
+    parts = [("Write for an agent reader. " if agent else "Use this chosen writing voice. ") + render_style_card(resolved)]
     for key, value in card.get("traits", {}).items():
         parts.append(key.replace("_", " ").capitalize() + ": " + value)
     for key, label in (("preferences", "Prefer"), ("avoid", "Avoid")):
         for value in card.get(key, []):
             parts.append(label + ": " + value)
-    parts.append("Apply these habits to wording, order and rhythm. Use only the current brief's facts; style evidence supplies no biography or claims.")
+    parts.append("Use only the source's instructions and facts; add none." if agent else
+                 "Apply these habits to wording, order and rhythm. Use only the current brief's facts; style evidence supplies no biography or claims.")
     return "\n".join(parts)
 
 

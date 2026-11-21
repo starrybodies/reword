@@ -21,7 +21,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parent.parent
-DESTINATIONS = frozenset({"general", "text-message", "chat", "email", "linkedin", "cover-letter", "essay", "web-copy"})
+DESTINATIONS = frozenset({"general", "text-message", "chat", "email", "linkedin", "cover-letter", "essay", "web-copy", "agent"})
 MODES = frozenset({"light", "rewrite", "deep"})
 _DESTINATION_ALIASES = {
     "text": "text-message", "texting": "text-message", "sms": "text-message",
@@ -31,6 +31,7 @@ _DESTINATION_ALIASES = {
     "coverletter": "cover-letter", "application": "cover-letter", "job-application": "cover-letter",
     "lyrical-essay": "essay", "personal-essay": "essay", "launch": "web-copy",
     "website": "web-copy", "web": "web-copy", "marketing": "web-copy", "technical": "general",
+    "ai-agent": "agent", "llm": "agent", "prompt": "agent", "system-prompt": "agent", "subagent": "agent",
 }
 _GENRE_ALIASES = {
     "technical-note": "technical", "technical-notes": "technical", "tech": "technical",
@@ -49,7 +50,8 @@ def _key(value: str, field: str) -> str:
 
 
 def _context(destination: str, genre: str) -> tuple[str, str]:
-    raw_destination, raw_genre = _key(destination, "destination"), _key(genre, "genre")
+    # A named context such as chat/family draws on its channel's examples.
+    raw_destination, raw_genre = _key(destination, "destination").partition("/")[0], _key(genre, "genre")
     destination = _DESTINATION_ALIASES.get(raw_destination, raw_destination)
     genre = _GENRE_ALIASES.get(raw_genre, raw_genre)
     destination = destination if destination in DESTINATIONS else "general"

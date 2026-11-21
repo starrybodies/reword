@@ -5,7 +5,7 @@ Use this workflow when a writer wants to build or keep improving a saved voice. 
 ## Start with the writer's choices
 
 1. Invite 3–5 favourite authored pieces or copy relevant to the intended work; accept one to start. Identify authorship before saving. Keep different writers in separate stores, and keep another writer's messages out of the user's authored evidence.
-2. Label each piece `authored` or `reference`, its destination, and its project or purpose. `authored` means the user actually wrote it. Admired writing is `reference`; a reference-only guide describes an aspiration and cannot establish the user's own voice. A model draft, including an approved model draft, is not an authored sample.
+2. Label each piece `authored` or `reference`, its destination, and its project or purpose. When the writer has several voices in one channel, such as two group chats or copy for two ventures, tag each piece with a [named context](context.md#named-contexts) like `chat/family` or `web-copy/acme`. `authored` means the user actually wrote it. Admired writing is `reference`; a reference-only guide describes an aspiration and cannot establish the user's own voice. A model draft, including an approved model draft, is not an authored sample.
 3. Ask once whether to remember later corrections and stated preferences. Creating a collection authorizes saving the supplied collection; it does not enable ongoing learning. Clear consent such as “Keep learning my voice” enables it. Proceed within that consent without asking permission for every update.
 4. Reuse a named existing collection when the writer chooses it. Preserve legacy profiles and separate projects whose voices differ; never silently combine authors or overwrite another profile.
 

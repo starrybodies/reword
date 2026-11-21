@@ -36,6 +36,11 @@
       "guidance": "Help readers scan and act; retain concrete language and character.",
       "style": {"case": "sentence", "punctuation": "standard", "spelling": "standard", "regional_spelling": "preserve", "abbreviations": "familiar", "contractions": "natural"}
     },
+    "agent": {
+      "label": "Agent",
+      "guidance": "The reader is a model that acts on this text. State the outcome, the limits and what it cannot find out alone, in as few tokens as carry them.",
+      "style": {"case": "preserve", "punctuation": "preserve", "spelling": "preserve", "regional_spelling": "preserve", "abbreviations": "preserve", "contractions": "preserve"}
+    },
     "general": {
       "label": "General",
       "guidance": "Keep the source's register; assume no extra familiarity.",

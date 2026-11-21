@@ -12,7 +12,8 @@ import hashlib
 import json
 import re
 
-from voice_context import (DESTINATIONS, TRAIT_FIELDS, compact_voice, resolve_context,
+from voice_context import (AGENT, DESTINATIONS, TRAIT_FIELDS, base_destination, compact_voice,
+                           destination_scopes, resolve_context,
                            validate_context_preferences, validate_voice_traits)
 
 
@@ -81,6 +82,9 @@ def _authored(record: dict) -> bool:
 
 
 def _eligible(record: dict) -> bool:
+    # Agent feedback applies as explicit preferences; it teaches no prose voice.
+    if base_destination(record["destination"]) == AGENT:
+        return False
     return ("role" in record or record.get("kind") == "revision"
             or bool(record.get("reason", "").strip() or record.get("prefer") or record.get("avoid")))
 
@@ -88,12 +92,17 @@ def _eligible(record: dict) -> bool:
 def _relevant(record: dict, destination: str) -> bool:
     if destination == "general":
         return "role" in record or record["destination"] == "general"
-    return record["destination"] in {"general", destination}
+    return record["destination"] in destination_scopes(destination)
 
 
 def _entries(store: dict, destination: str) -> list[dict]:
-    scopes = ("general",) if destination == "general" else ("general", destination)
-    return [store["profiles"][scope] for scope in scopes if scope in store["profiles"]]
+    return [store["profiles"][scope] for scope in destination_scopes(destination) if scope in store["profiles"]]
+
+
+def named_contexts(store: dict) -> list[str]:
+    """Named contexts the author has used, from evidence tags and learned profiles."""
+    used = {record["destination"] for record in _records(store)} | set(store["profiles"])
+    return sorted(value for value in used if "/" in value)
 
 
 def _provenance(store: dict, destination: str) -> set[str]:
@@ -174,7 +183,7 @@ def _explicit(store: dict, destination: str) -> dict:
                 if normalized not in {_preference_key(v) for v in result[key]}:
                     result[key].append(value)
 
-    for scope in (("general",) if destination == "general" else ("general", destination)):
+    for scope in destination_scopes(destination):
         profile = store["profiles"].get(scope, {}).get("profile", {})
         update(profile.get("preferences", []), profile.get("avoid", []))
         for record in store["feedback"]:
@@ -198,9 +207,11 @@ def _scoped_trait(value: str, basis: str) -> str:
 def compile_profile(store: dict, destination: str = "general") -> dict:
     """Return a small legacy-compatible profile with no raw corpus or history.
 
-    General traits are defaults for destination traits. Local explicit guidance
-    wins over general guidance; distinct preferences survive or fail visibly if
-    the existing profile format cannot hold them. References remain inspiration.
+    General traits are defaults for destination traits, and a channel's traits
+    are defaults for its named contexts. Local explicit guidance wins over
+    broader guidance; distinct preferences survive or fail visibly if the
+    existing profile format cannot hold them. References remain inspiration.
+    An agent destination carries explicit preferences and locks, never traits.
     """
     checked, destination = _store(store), _destination(destination)
     records = {record["id"]: record for record in _records(checked)}
@@ -213,13 +224,12 @@ def compile_profile(store: dict, destination: str = "general") -> dict:
         basis = _basis(entry["evidence_ids"], records)
         traits.update({key: _scoped_trait(value, basis) for key, value in source.get("traits", {}).items()})
         contexts = source.get("contexts", {})
-        context.update(contexts.get("general", {}))
-        if destination != "general":
-            context.update(contexts.get(destination, {}))
+        for scope in destination_scopes(destination):
+            context.update(contexts.get(scope, {}))
         for value in source.get("preserve", []):
             if value not in preserve:
                 preserve.append(value)
-    if traits:
+    if traits and base_destination(destination) != AGENT:
         profile["traits"] = validate_voice_traits(traits)
     if context:
         profile["contexts"] = validate_context_preferences({destination: context})
@@ -331,6 +341,8 @@ def build_learning_request(store: dict, destination: str = "general", *, max_evi
     for the model; model-facing omission previews are bounded.
     """
     checked, destination = _store(store), _destination(destination)
+    if base_destination(destination) == AGENT:
+        raise ValueError("Agent destinations have no voice to learn; their explicit preferences already apply.")
     if type(max_evidence_chars) is not int or not 1 <= max_evidence_chars <= MAX_EVIDENCE_CHARS:
         raise ValueError(f"max_evidence_chars must be an integer from 1 to {MAX_EVIDENCE_CHARS}.")
     records = _records(checked)
@@ -516,9 +528,10 @@ def collection_status(store: dict) -> dict:
                               "basis": _trait_basis(entry["profile"].get("traits", {}), entry["evidence_ids"], by_id)}
                 for destination, entry in checked["profiles"].items()}
     destinations = {}
-    for destination in DESTINATIONS:
+    for destination in (*DESTINATIONS, *named_contexts(checked)):
         covered = _reviewed(checked, destination)
-        pending = [record for record in records if _relevant(record, destination) and record["id"] not in covered]
+        pending = [] if base_destination(destination) == AGENT else [
+            record for record in records if _relevant(record, destination) and record["id"] not in covered]
         destinations[destination] = {"pending_evidence_count": len(pending),
                                      "pending_style_evidence_count": sum("role" in record for record in pending),
                                      "pending_correction_evidence_count": sum(record.get("kind") == "revision" for record in pending),
@@ -532,8 +545,8 @@ def collection_status(store: dict) -> dict:
             "revision_feedback_count": sum(record["kind"] == "revision" for record in checked["feedback"]),
             "feedback_count": len(checked["feedback"]), "pending_evidence_ids": list(pending_ids),
             "pending_style_evidence_ids": [record["id"] for record in records if record["id"] in pending_set and "role" in record],
-            "pending_correction_evidence_ids": [record["id"] for record in checked["feedback"] if record["id"] in pending_set and record["kind"] == "revision"],
+            "pending_correction_evidence_ids": [record["id"] for record in checked["feedback"] if record["id"] in pending_set and _eligible(record) and record["kind"] == "revision"],
             "pending_feedback_evidence_ids": [record["id"] for record in checked["feedback"] if record["id"] in pending_set and _eligible(record) and record["kind"] != "revision"],
             "feedback_only_pending_ids": [record["id"] for record in checked["feedback"] if record["id"] in pending_set and not _eligible(record)],
-            "profiles": profiles, "destinations": destinations,
+            "profiles": profiles, "destinations": destinations, "named_contexts": named_contexts(checked),
             "note": "Evidence coverage and profile versions describe provenance, not measured voice quality."}
