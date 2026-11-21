@@ -388,6 +388,50 @@
       "before": "Great question! You can cancel before the renewal date. I hope this helps.",
       "after": "You can cancel before the renewal date.",
       "reason": "Standalone copy needs the answer. Preserve can and the cancellation condition."
+    },
+    {
+      "id": "agent-request",
+      "action": "rewrite",
+      "family": "agent-filler",
+      "destinations": [
+        "agent"
+      ],
+      "genres": [
+        "general",
+        "technical",
+        "professional"
+      ],
+      "rules": [],
+      "needs_signal": true,
+      "signals": [
+        "\\b(?:i was wondering|could you|can you|would you mind|if you could|take a look)\\b",
+        "\\b(?:maybe|kind of|sort of|i think|i guess|thanks so much|thank you so much)\\b"
+      ],
+      "before": "Hey, so I was wondering if you could maybe take a look at the login page? It seems kind of slow, I think since the last deploy. Don't touch the auth code though, Priya is rewriting it. Thanks so much!",
+      "after": "Find out why the login page seems slow and report the cause. The slowdown may date from the last deploy. Leave the auth code unchanged, because Priya is rewriting it.",
+      "reason": "Cut the greeting, the padding and the thanks. Keep the real doubt about the cause, the limit on auth code and its reason. The source asks for a finding, so add no fix."
+    },
+    {
+      "id": "agent-standing-rule",
+      "action": "rewrite",
+      "family": "agent-emphasis",
+      "destinations": [
+        "agent"
+      ],
+      "genres": [
+        "general",
+        "technical",
+        "professional"
+      ],
+      "rules": [],
+      "needs_signal": true,
+      "signals": [
+        "(?-i:\\b(?:IMPORTANT|CRITICAL|NEVER|ALWAYS|MUST|DO NOT)\\b)",
+        "!{2,}"
+      ],
+      "before": "IMPORTANT!!! NEVER EVER run the migrations yourself. You MUST ALWAYS ask first. This is REALLY important.",
+      "after": "Ask before running migrations.",
+      "reason": "One plain sentence carries the whole rule. Capitals and repetition cost tokens and add no instruction. The source gives no reason, so none is added."
     }
   ]
 }

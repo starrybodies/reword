@@ -145,7 +145,8 @@ class ContextValidation(unittest.TestCase):
 
 class StyleCards(unittest.TestCase):
     def test_cards_are_short_and_protect_content(self):
-        for destination in voice.DESTINATIONS:
+        # The agent card has its own contract in test_agent_destination.
+        for destination in (value for value in voice.DESTINATIONS if value != voice.AGENT):
             with self.subTest(destination=destination):
                 card = voice.render_style_card(voice.resolve_context(destination))
                 self.assertLessEqual(len(card), 600)

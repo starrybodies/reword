@@ -16,7 +16,7 @@ python3 scripts/reword.py diff original.md edited.md
 
 `prompt` builds a provider-neutral request; it does not rewrite prose itself. Send `instructions` as the host's instruction message and `input` as data. `meta` reports destination resolution and budgets. A direct invocation uses the host model and reads the shared editorial method instead.
 
-Destinations: `text-message`, `chat`, `email`, `linkedin`, `cover-letter`, `essay`, `web-copy`, `general`, or conservative `auto`. Use `style` to inspect settings. See [context](context.md) for casing, punctuation, spelling, regional spelling, abbreviations, contractions, and preference precedence. Each has a per-call override. Destination conventions never authorize changing protected quotations, names, code, or factual claims.
+Destinations: `text-message`, `chat`, `email`, `linkedin`, `cover-letter`, `essay`, `web-copy`, `agent`, `general`, or conservative `auto`. Any of them takes a named context such as `chat/family` or `web-copy/acme`, which layers its own preferences and learned traits over the destination. Use `style` to inspect settings. See [context](context.md) for casing, punctuation, spelling, regional spelling, abbreviations, contractions, and preference precedence. Each has a per-call override. Destination conventions never authorize changing protected quotations, names, code, or factual claims.
 
 Modes: `light`, `rewrite` (default), `deep`. Genres: `general`, `professional`, `creative`, `technical`. Mode controls editorial scope; destination controls conventions. Optional `--audience` and `--purpose` allow 240 characters each; `--context` allows 1,000. `--max-words` must be positive.
 
@@ -25,6 +25,8 @@ The default guidance cap is 4,000 characters across instructions and all non-sou
 `focus` selects at most two examples without loading the catalogue into model context. Examples include rewrites and deliberate unchanged prose; their facts never enter the target. Clean prose usually needs none. `lint` returns up to eight editorial suggestions, excluding protected material; `--limit` accepts 1–100. Findings are not an authorship assessment.
 
 `check` compares numeric literals and common units, English month/day and ISO dates, named quote attributions, quotations, code, initial YAML frontmatter, links, reference definitions, URLs, citations, and locks. Short-claim alignment flags possible changes to direction, quantity-to-subject pairings, uncertainty, negation, commitments, ability, causality, and small spelled-out counts. Protected spans may move; contents and counts must survive. Numbered list markers are excluded. `omitted_errors` and `omitted_review` count findings beyond the displayed limit.
+
+With `--destination agent`, `check` counts a literal, number, date or lock as kept when at least one mention survives, because a brief states each thing once. It still blocks a literal that disappears entirely or appears from nowhere. It adds an `efficiency` report with estimated tokens for both texts, and it asks for review when the candidate is longer than its source. See [agent readers](agents.md).
 
 Pass the same destination and style overrides to `check` to flag some clear missed conventions. These warnings never edit text or claim complete style coverage. `--profile` also applies locks and saved destination preferences. Profile writes occur only through explicitly requested `voice` commands; see [voice](voice.md).
 

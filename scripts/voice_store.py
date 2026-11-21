@@ -16,7 +16,8 @@ from pathlib import Path
 import stat
 import tempfile
 
-from voice_context import DESTINATIONS, validate_context_preferences, validate_voice_traits
+from voice_context import (AGENT, base_destination, canonical_destination,
+                           validate_context_preferences, validate_voice_traits)
 
 
 SCHEMA_VERSION = 1
@@ -48,9 +49,7 @@ def _integer(value, label: str, *, minimum: int = 0) -> int:
 
 
 def _destination(value) -> str:
-    if not isinstance(value, str) or value not in DESTINATIONS:
-        raise ValueError("Use a canonical destination: " + ", ".join(DESTINATIONS) + ".")
-    return value
+    return canonical_destination(value)
 
 
 def _normal(value: str) -> str:
@@ -124,7 +123,9 @@ def _sample(text, role, destination, label) -> dict:
     _string(text, "Sample text", MAX_TEXT_CHARS)
     if role not in ("authored", "reference"):
         raise ValueError("Sample role must be authored or reference.")
-    _destination(destination)
+    if base_destination(destination) == AGENT:
+        # Text written for a model is not evidence of the author's prose voice.
+        raise ValueError("Agent destinations take explicit preferences, not writing samples.")
     _string(label, "Sample label", 200, blank=True)
     try:
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -185,9 +186,11 @@ def _ids(values, known: set[str], label: str) -> list[str]:
 
 
 def _entries(entries, known: set[str], maximum_version: int) -> dict:
-    if not isinstance(entries, dict) or any(key not in DESTINATIONS for key in entries):
-        raise ValueError("profiles must map canonical destinations to profile entries.")
-    for entry in entries.values():
+    if not isinstance(entries, dict):
+        raise ValueError("profiles must map destinations or named contexts to profile entries.")
+    for key, entry in entries.items():
+        if base_destination(key) == AGENT:
+            raise ValueError("Agent destinations have no learned voice profile.")
         required = {"profile", "evidence_ids", "version"}
         if (not isinstance(entry, dict) or required - set(entry)
                 or set(entry) - (required | {"reviewed_evidence_ids"})):

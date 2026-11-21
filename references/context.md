@@ -1,4 +1,12 @@
-# Destination and author context
+# Contexts
+
+Context is the whole situation a piece is written for: the reader, what they need, the author's relationship to them, and where the piece appears. Reword carries it at three levels.
+
+1. A **destination** names the channel and sets surface defaults. The table below lists the built-in ones.
+2. A **task brief** states this occasion. Pass `--audience`, `--purpose` and `--context` for anything the destination does not say, such as a membership application read by a committee or a reply to a customer who is upset.
+3. A **named context** saves a recurring occasion with its own evidence and preferences. See [named contexts](#named-contexts).
+
+The built-in destinations are examples of channels. Work that matches none of them uses the nearest one, or `general`, together with a task brief.
 
 A destination changes how an author's voice is expressed. Keep their word choice, rhythm, imagery, humor, warmth and other distinctive habits active while fitting the reader and purpose. These policies are instructions for an editor or model, not filters that lowercase or respell finished text.
 
@@ -13,13 +21,33 @@ Choose a destination explicitly when it is known. `auto` uses a single destinati
 | `cover-letter` | Specific professional prose with appropriate capitalization, punctuation and spelling; preserve the author's character. |
 | `essay` | Standard surfaces; retain the author's argument, rhythm, devices and contraction habits. |
 | `web-copy` | Standard surfaces, natural contractions and fitting familiar abbreviations; clear movement toward the reader's task. |
+| `agent` | The reader is a model that acts on the text. Surface habits and prose voice are left out. See [agent readers](agents.md). |
 | `general` | Preserve author/source habits and register. |
 
 No default requires slang, deliberate errors or an intimate register. Keep proper names, acronyms, quoted text, URLs, code and meaning-sensitive punctuation intact. Regional spelling affects editable prose, not protected material. A lowercase preference never authorizes indiscriminate lowercasing.
 
+## Named contexts
+
+A named context is written `DESTINATION/NAME`: a built-in destination, a slash, then up to 40 lowercase letters, digits or hyphens. `chat/family` and `chat/work` are two chats with different tones. `web-copy/acme` and `web-copy/northwind` are copy for two ventures. `general/membership-application` is an occasion with no closer channel.
+
+A named context inherits its destination's surface defaults and examples. Its own material layers on top in this order: `general`, then the destination, then the named context. That order applies to style options, explicit preferences, avoid entries and learned traits. Evidence tagged with one named context never reaches a sibling, so `chat/family` habits stay out of `chat/work`.
+
+Nothing has to be declared first. A named context exists once a sample, a preference or a learned profile carries its name.
+
+```bash
+python3 scripts/reword.py voice add STORE thread.md --destination chat/family --label 'Family group chat'
+python3 scripts/reword.py voice feedback STORE --kind preference --destination chat/family --prefer 'Tease gently' --avoid 'Work vocabulary'
+python3 scripts/reword.py voice refine STORE --destination chat/family
+python3 scripts/reword.py prompt draft.md --destination chat/family --voice STORE
+```
+
+State who reads the context and what tone it takes as an explicit preference, so the description travels with every request. `voice status STORE` lists the saved names under `named_contexts`, and every `prompt` that uses a collection repeats the list in `meta.voice_collection`. Choose from that list before coining a name, because a misspelled name starts a new, empty context.
+
+`auto` never infers a named context. The resolver accepts spaces and capitals in a requested name and normalizes them. Collection commands require the exact canonical form. A name under an unknown destination falls back to `general`.
+
 ## Profile schema
 
-`contexts` is an optional object whose keys are canonical destinations from the table. Each value is a small object containing any of these options. Unknown keys and values are rejected.
+`contexts` is an optional object whose keys are destinations from the table or named contexts. Each value is a small object containing any of these options. Unknown keys and values are rejected.
 
 | Option | Allowed values |
 | --- | --- |
@@ -32,7 +60,7 @@ No default requires slang, deliberate errors or an intimate register. Keep prope
 
 `preserve` retains the author's relevant choices. `sentence` means appropriate capitalization, including proper names. `standard` uses conventional punctuation or spelling. `light` removes unnecessary punctuation while retaining boundaries needed for meaning. `sampled-colloquial` permits only supplied colloquial spellings; it does not create typos. `familiar` permits understandable abbreviations when fitting; it does not require them. The regional option overrides the source's regional spelling only when explicitly set to `US`, `UK` or `CA`.
 
-Merge order is destination defaults, then `contexts.general`, then `contexts[chosen_destination]`, then explicit per-call overrides. Explicit user preferences take priority over inferred habits and defaults. A general preference therefore applies everywhere unless a destination-specific preference or per-call override replaces it.
+Merge order is destination defaults, then `contexts.general`, then `contexts[chosen_destination]`, then `contexts[named_context]` when one is chosen, then explicit per-call overrides. Explicit user preferences take priority over inferred habits and defaults. A general preference therefore applies everywhere unless a destination-specific preference or per-call override replaces it.
 
 ```json
 {
