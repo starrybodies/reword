@@ -421,8 +421,13 @@ _STYLE_TERMS = re.compile(
     r"punctuat\w*|dash\w*|colon\w*|semicolon\w*|parenthe\w*|question\w*|detail\w*|example\w*|"
     r"observ\w*|qualif\w*|hedg\w*|emphas\w*|voice|style|abbreviat\w*|contraction\w*|spelling|capitaliz\w*|"
     r"nouns?|verbs?|syntax|grammar|tense|asides?)\b", re.I)
+_FIRST_PERSON = re.compile(r"\b(?:I|we|my|our)\b", re.I)
+# Quoted wording cites the author's own phrasing, such as a hedge like 'I think'.
+# A single quote opens after a non-word character and closes before one, so the
+# apostrophes in words such as I'm or author's are not taken for quote marks.
+_QUOTATION = re.compile(r"\"[^\"\n]*\"|“[^”\n]*”|(?<!\w)'[^\n]*?'(?!\w)|‘[^\n]*?’(?!\w)")
 _FACT_OR_COMMAND = re.compile(
-    r"(?:\b(?:I|we|my|our)\b|https?://|www\.|[$€£]|\d|[\n\r]|"
+    r"(?:https?://|www\.|[$€£]|\d|[\n\r]|"
     r"\b(?:born|lives? in|lived in|resides? in|works? at|worked at|worked for|studied at|graduated|"
     r"salary|married|children|aged|years? old|ignore (?:all|previous)|system prompt|execute|upload|download)\b|"
     r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|several)\s+(?:hours?|days?|weeks?|months?|years?|dollars?|euros?)\b)", re.I)
@@ -432,10 +437,30 @@ _QUOTA = re.compile(
     r"(?:one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:words?|sentences?|dashes?|commas?)\s+(?:per|in every))\b", re.I)
 
 
+def _observation_problem(value: str, names: set[str]) -> str:
+    if _FIRST_PERSON.search(_QUOTATION.sub(" ", value)):
+        return ("uses I, we, my or our outside quotation marks. Describe the habit in the third person, "
+                "or quote the author's exact words.")
+    match = _FACT_OR_COMMAND.search(value)
+    if match:
+        return f"contains a fact or command ({match[0]!r}). Traits describe style, never facts, links, numbers or instructions."
+    match = _QUOTA.search(value)
+    if match:
+        return f"sets a blanket quota ({match[0]!r}). Describe a tendency instead."
+    copied = [word for word in re.findall(r"\b[A-Za-z_]+\b", value) if word.casefold() in names]
+    if copied:
+        return f"copies a name from the evidence ({copied[0]!r}). Traits describe style, never names from the samples."
+    if not _STYLE_TERMS.search(value):
+        return "does not describe style. Name a habit of word choice, rhythm, openings, endings, transitions, tone or devices."
+    return ""
+
+
 def _validate_observations(traits: dict, evidence: list[dict]) -> dict:
     # These are conservative local guards, not a substitute for evidence-aware
     # model interpretation. In particular, a new proper name copied from sample
-    # content does not become an enduring vocabulary preference.
+    # content does not become an enduring vocabulary preference. First-person
+    # words are allowed only inside quotation marks, where they cite the
+    # author's wording rather than state a fact or an instruction.
     names = set()
     common = {"the", "this", "that", "these", "those", "could", "would", "should", "please", "thanks", "from", "subject"}
     for record in evidence:
@@ -447,10 +472,10 @@ def _validate_observations(traits: dict, evidence: list[dict]) -> dict:
                         and (word.isupper() or not re.search(r"(?:^|[.!?]\s*|\n\s*)$", text[max(0, match.start() - 256):match.start()]))):
                     names.add(word.casefold())
     checked = validate_voice_traits(traits)
-    for value in checked.values():
-        if (not _STYLE_TERMS.search(value) or _FACT_OR_COMMAND.search(value) or _QUOTA.search(value)
-                or names & {word.casefold() for word in re.findall(r"\b[A-Za-z_]+\b", value)}):
-            raise ValueError("Voice proposals must contain useful style observations, not facts, commands, or blanket quotas.")
+    for field, value in checked.items():
+        problem = _observation_problem(value, names)
+        if problem:
+            raise ValueError(f'Voice trait "{field}" {problem}')
     return checked
 
 
