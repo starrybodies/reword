@@ -17,7 +17,6 @@ from voice_context import (AGENT, DESTINATIONS, TRAIT_FIELDS, base_destination, 
                            validate_context_preferences, validate_voice_traits)
 
 
-SCHEMA_VERSION = 1
 MAX_BATCH_RECORDS = 24
 MAX_EVIDENCE_CHARS = 10_000_000
 _TRACE_PREVIEW = 8
@@ -147,7 +146,7 @@ def _preference_key(value: str) -> str:
 
 
 def _pack_directives(values: list[str], key: str, limit: int) -> list[str]:
-    """Pack adjacent whole directives only when legacy list slots require it.
+    """Pack adjacent whole directives only when the compact profile's list slots require it.
 
     Greedy consecutive grouping uses the fewest slots while preserving order.
     Separators are the only added text; no directive is shortened or reworded.
@@ -199,13 +198,13 @@ def _scoped_trait(value: str, basis: str) -> str:
               _DIRECTION_PREFIX if basis in {"feedback-guidance", "unattributed-guidance", "correction-guidance", "correction-and-reference"} else "")
     if not prefix or value.startswith((_REFERENCE_PREFIX, _DIRECTION_PREFIX)):
         return value
-    # Scope must survive even when an imported legacy observation uses all 120 characters.
+    # Scope must survive even when an observation already uses all 120 characters.
     remaining = 120 - len(prefix)
     return prefix + (value if len(value) <= remaining else value[:remaining - 1].rstrip() + "…")
 
 
 def compile_profile(store: dict, destination: str = "general") -> dict:
-    """Return a small legacy-compatible profile with no raw corpus or history.
+    """Return a compact profile with no raw corpus or history.
 
     General traits are defaults for destination traits, and a channel's traits
     are defaults for its named contexts. Local explicit guidance wins over
@@ -390,7 +389,7 @@ def build_learning_request(store: dict, destination: str = "general", *, max_evi
                 "complete": not omitted, "omitted_preview": omitted[:_TRACE_PREVIEW],
                 "omission_preview_truncated": len(omitted) > _TRACE_PREVIEW,
                 "minimum_budget_for_next_record": min((value["chars"] for value in omitted), default=None)}
-    data = {"schema_version": SCHEMA_VERSION, "name": checked["name"], "destination": destination,
+    data = {"schema_version": checked["schema_version"], "name": checked["name"], "destination": destination,
             "store_revision": checked["revision"], "store_hash": _hash(checked),
             "current_profile": current_profile, "explicit_preferences": _explicit(checked, destination),
             "evidence": evidence, "evidence_ids": selected_ids, "authored_anchors": anchors,
@@ -421,8 +420,13 @@ _STYLE_TERMS = re.compile(
     r"punctuat\w*|dash\w*|colon\w*|semicolon\w*|parenthe\w*|question\w*|detail\w*|example\w*|"
     r"observ\w*|qualif\w*|hedg\w*|emphas\w*|voice|style|abbreviat\w*|contraction\w*|spelling|capitaliz\w*|"
     r"nouns?|verbs?|syntax|grammar|tense|asides?)\b", re.I)
+_FIRST_PERSON = re.compile(r"\b(?:I|we|my|our)\b", re.I)
+# Quoted wording cites the author's own phrasing, such as a hedge like 'I think'.
+# A single quote opens after a non-word character and closes before one, so the
+# apostrophes in words such as I'm or author's are not taken for quote marks.
+_QUOTATION = re.compile(r"\"[^\"\n]*\"|“[^”\n]*”|(?<!\w)'[^\n]*?'(?!\w)|‘[^\n]*?’(?!\w)")
 _FACT_OR_COMMAND = re.compile(
-    r"(?:\b(?:I|we|my|our)\b|https?://|www\.|[$€£]|\d|[\n\r]|"
+    r"(?:https?://|www\.|[$€£]|\d|[\n\r]|"
     r"\b(?:born|lives? in|lived in|resides? in|works? at|worked at|worked for|studied at|graduated|"
     r"salary|married|children|aged|years? old|ignore (?:all|previous)|system prompt|execute|upload|download)\b|"
     r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|several)\s+(?:hours?|days?|weeks?|months?|years?|dollars?|euros?)\b)", re.I)
@@ -432,10 +436,37 @@ _QUOTA = re.compile(
     r"(?:one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:words?|sentences?|dashes?|commas?)\s+(?:per|in every))\b", re.I)
 
 
+def _observation_problem(value: str, names: set[str]) -> str:
+    if _FIRST_PERSON.search(_QUOTATION.sub(" ", value)):
+        return ("uses I, we, my or our outside quotation marks. Describe the habit in the third person, "
+                "or quote the author's exact words.")
+    match = _FACT_OR_COMMAND.search(value)
+    if match:
+        return f"contains a fact or command ({match[0]!r}). Traits describe style, never facts, links, numbers or instructions."
+    match = _QUOTA.search(value)
+    if match:
+        return f"sets a blanket quota ({match[0]!r}). Describe a tendency instead."
+    copied = [word for word in re.findall(r"\b[A-Za-z_]+\b", value) if word.casefold() in names]
+    if copied:
+        return f"copies a name from the evidence ({copied[0]!r}). Traits describe style, never names from the samples."
+    if not _STYLE_TERMS.search(value):
+        return "does not describe style. Name a habit of word choice, rhythm, openings, endings, transitions, tone or devices."
+    return ""
+
+
+# A capitalized word opens a sentence, rather than naming something, at the start of
+# the text or a line, after list, quote or heading markers, or after sentence
+# punctuation and any closing quote or bracket.
+_SENTENCE_START = re.compile(
+    r"(?:(?:^|\n)\s*(?:(?:[-*+>•·‣◦▪–—]|\d{1,3}[.)]|#{1,6})\s+)*|[.!?][\"'”’)\]]*\s*)[\"'“‘(\[]*$")
+
+
 def _validate_observations(traits: dict, evidence: list[dict]) -> dict:
     # These are conservative local guards, not a substitute for evidence-aware
     # model interpretation. In particular, a new proper name copied from sample
-    # content does not become an enduring vocabulary preference.
+    # content does not become an enduring vocabulary preference. First-person
+    # words are allowed only inside quotation marks, where they cite the
+    # author's wording rather than state a fact or an instruction.
     names = set()
     common = {"the", "this", "that", "these", "those", "could", "would", "should", "please", "thanks", "from", "subject"}
     for record in evidence:
@@ -444,13 +475,13 @@ def _validate_observations(traits: dict, evidence: list[dict]) -> dict:
             for match in re.finditer(r"\b[A-Z][A-Za-z_]{2,}\b", text):
                 word = match[0]
                 if (word.casefold() not in common and not _STYLE_TERMS.fullmatch(word)
-                        and (word.isupper() or not re.search(r"(?:^|[.!?]\s*|\n\s*)$", text[max(0, match.start() - 256):match.start()]))):
+                        and (word.isupper() or not _SENTENCE_START.search(text[max(0, match.start() - 256):match.start()]))):
                     names.add(word.casefold())
     checked = validate_voice_traits(traits)
-    for value in checked.values():
-        if (not _STYLE_TERMS.search(value) or _FACT_OR_COMMAND.search(value) or _QUOTA.search(value)
-                or names & {word.casefold() for word in re.findall(r"\b[A-Za-z_]+\b", value)}):
-            raise ValueError("Voice proposals must contain useful style observations, not facts, commands, or blanket quotas.")
+    for field, value in checked.items():
+        problem = _observation_problem(value, names)
+        if problem:
+            raise ValueError(f'Voice trait "{field}" {problem}')
     return checked
 
 
@@ -537,7 +568,7 @@ def collection_status(store: dict) -> dict:
                                      "pending_correction_evidence_count": sum(record.get("kind") == "revision" for record in pending),
                                      "pending_eligible_count": sum(_eligible(record) for record in pending),
                                      "feedback_only_pending_count": sum(not _eligible(record) for record in pending)}
-    return {"schema_version": SCHEMA_VERSION, "name": checked["name"], "revision": checked["revision"],
+    return {"schema_version": checked["schema_version"], "name": checked["name"], "revision": checked["revision"],
             "profile_version": checked.get("profile_version", max((entry["version"] for entry in checked["profiles"].values()), default=0)),
             "learning_enabled": checked["learning_enabled"], "sample_count": len(checked["samples"]),
             "authored_sample_count": sum(record["role"] == "authored" for record in checked["samples"]),

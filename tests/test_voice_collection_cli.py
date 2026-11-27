@@ -128,10 +128,6 @@ class VoiceCollectionCLI(unittest.TestCase):
         self.assertFalse(load_collection(self.store)["profiles"])
         self.assertEqual(self.cli("voice", "rollback", self.store, "--version", "1").returncode, 2)
 
-    def test_profile_and_collection_are_mutually_exclusive(self):
-        result = self.cli("prompt", "-", "--profile", "profile.json", "--voice", "voice.json", text="Draft.")
-        self.assertEqual(result.returncode, 2)
-
     def test_a_later_preference_can_reverse_an_earlier_reversal(self):
         self.assertEqual(self.cli("voice", "create", self.store, "--name", "My voice").returncode, 0)
         for option in ("--prefer", "--avoid", "--prefer"):

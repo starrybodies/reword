@@ -20,7 +20,7 @@ from voice_context import (AGENT, base_destination, canonical_destination,
                            validate_context_preferences, validate_voice_traits)
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_STORE_BYTES = 10 * 1024 * 1024
 MAX_HISTORY = 32
 MAX_RECORDS = 10_000
@@ -79,7 +79,7 @@ def _preferences(values, label: str, count: int, size: int) -> list[str]:
 
 
 def _profile(profile) -> dict:
-    """Match legacy profile constraints without importing the CLI or editor."""
+    """Match the compact profile constraints in reword.validate_profile without importing the CLI."""
     allowed = {"name", "preferences", "avoid", "preserve", "samples", "traits", "contexts"}
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile accepts name, preferences, avoid, preserve, samples, traits, and contexts only.")
@@ -243,7 +243,8 @@ def validate_collection(store) -> dict:
     _json_bytes(store)  # Bound the entire input before copying or traversing it.
     checked = deepcopy(store)
     if type(checked["schema_version"]) is not int or checked["schema_version"] != SCHEMA_VERSION:
-        raise ValueError("Unsupported collection schema_version.")
+        raise ValueError(f"Unsupported collection schema_version {checked['schema_version']!r}; "
+                         f"this Reword reads version {SCHEMA_VERSION}.")
     _string(checked["name"], "Collection name", 80)
     revision = _integer(checked["revision"], "Collection revision")
     if type(checked["learning_enabled"]) is not bool:

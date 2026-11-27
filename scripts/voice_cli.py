@@ -17,9 +17,6 @@ def destination_argument(value):
         raise argparse.ArgumentTypeError(str(error)) from error
 
 
-COLLECTION_ACTIONS = {"onboard", "create", "add", "feedback", "learning", "refine", "update", "status", "export", "rollback", "forget"}
-
-
 def register_collection_commands(actions):
     actions.add_parser("onboard", help="Show the optional voice-building invitation")
     create = actions.add_parser("create", help="Create a private voice collection")

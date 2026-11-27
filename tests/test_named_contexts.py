@@ -193,16 +193,5 @@ class CommandLine(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("named context", result.stderr)
 
-    def test_legacy_profile_accepts_named_context_preferences(self):
-        profile = self.path / "profile.json"
-        self.assertEqual(self.cli("voice", "init", profile).returncode, 0)
-        saved = self.cli("voice", "context", profile, "--destination", "linkedin/studio", "--contractions", "avoid")
-        self.assertEqual(saved.returncode, 0, saved.stderr)
-        style = self.cli("style", "--profile", profile, "--destination", "linkedin/studio")
-        self.assertEqual(json.loads(style.stdout)["destination"]["style"]["contractions"], "avoid")
-        self.assertEqual(json.loads(self.cli("style", "--profile", profile, "--destination", "linkedin").stdout)
-                         ["destination"]["style"]["contractions"], "natural")
-
-
 if __name__ == "__main__":
     unittest.main()

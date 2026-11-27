@@ -218,6 +218,8 @@ class BoundedCoverage(LearningCase):
         general_request = learning.build_learning_request(store)
         self.assertEqual(general_request["input"]["evidence_ids"], [general_id])
         status = learning.collection_status(store)
+        self.assertEqual(status["schema_version"], store_api.SCHEMA_VERSION)
+        self.assertEqual(general_request["input"]["schema_version"], store_api.SCHEMA_VERSION)
         self.assertEqual(status["destinations"]["general"]["pending_style_evidence_count"], 1)
         self.assertEqual(status["destinations"]["email"]["pending_style_evidence_count"], 0)
 
@@ -305,6 +307,40 @@ class ProposalValidation(LearningCase):
                             "End each paragraph with a joke", "Lived in Peru", "", "x" * 121):
             with self.subTest(observation=observation), self.assertRaises(ValueError):
                 learning.apply_learning_proposal(self.store, self.request, self.proposal(self.request, devices=observation))
+
+    def test_quoted_first_person_wording_is_a_style_observation(self):
+        traits = {"vocabulary": "Mild hedges like 'I think' or 'I'm not sure' soften claims",
+                  "transitions": "Turns from event to meaning via \"What I've come to…\"",
+                  "openings": "Prefers “we” to ‘I’ in openings about shared work"}
+        updated = learning.apply_learning_proposal(self.store, self.request, self.proposal(self.request, **traits))
+        self.assertEqual(updated["profiles"]["general"]["profile"]["traits"], traits)
+
+    def test_first_person_words_outside_quotation_marks_still_fail(self):
+        for observation in ("Mild hedges like I think soften claims", "Hedges like 'I think' in my openings",
+                            "Short sentences, the way we like them"):
+            with self.subTest(observation=observation), self.assertRaisesRegex(
+                    ValueError, 'trait "vocabulary" uses I, we, my or our outside quotation marks'):
+                learning.apply_learning_proposal(self.store, self.request, self.proposal(self.request, vocabulary=observation))
+
+    def test_words_opening_list_items_or_quoted_sentences_are_not_names(self):
+        sample = ("• And now the short part.\n- Then a pause.\n1. Still going.\n> But not for long.\n"
+                  "She said \"Done.\" Later the guests met Mara.")
+        store, _ = self.sample(self.fresh(), sample)
+        request = learning.build_learning_request(store)
+        traits = {"rhythm": "Short lines, and then a pause", "transitions": "Turns still land later, but softly"}
+        updated = learning.apply_learning_proposal(store, request, self.proposal(request, **traits))
+        self.assertEqual(updated["profiles"]["general"]["profile"]["traits"], traits)
+        with self.assertRaisesRegex(ValueError, r"copies a name from the evidence \('Mara'\)"):
+            learning.apply_learning_proposal(store, request, self.proposal(request, openings="Warm openings about Mara"))
+
+    def test_rejections_name_the_field_and_the_rule(self):
+        cases = [("devices", "Worked at a quiet pace", r"contains a fact or command \('Worked at'\)"),
+                 ("rhythm", "Every sentence short", r"sets a blanket quota \('Every sentence'\)"),
+                 ("openings", "Concrete openings about Northbridge", r"copies a name from the evidence \('Northbridge'\)"),
+                 ("emotional_register", "Mentions the weather", "does not describe style")]
+        for field, observation, message in cases:
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, f'trait "{field}" {message}'):
+                learning.apply_learning_proposal(self.store, self.request, self.proposal(self.request, **{field: observation}))
 
     def test_traits_only_update_preserves_explicit_preferences_and_locks(self):
         store = store_api.commit_profile(self.store, "general", {"preferences": ["Use warmth"], "avoid": ["Generic praise"],

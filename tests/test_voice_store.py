@@ -500,6 +500,14 @@ class PrivatePersistence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valid"):
             voice_store.load_collection(self.target)
 
+    def test_other_schema_versions_are_rejected_by_number(self):
+        voice_store.save_collection(self.target, collection(), create=True)
+        for version in (1, 3, "2"):
+            with self.subTest(version=version):
+                self.target.write_text(json.dumps({**collection(), "schema_version": version}), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, rf"schema_version {version!r}; this Reword reads version 2"):
+                    voice_store.load_collection(self.target)
+
     def test_forgetting_is_persisted_with_no_recoverable_history(self):
         marker = "SYNTHETIC-PERSISTED-FORGET-MARKER"
         store = voice_store.add_sample(collection(), marker)
