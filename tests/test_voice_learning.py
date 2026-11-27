@@ -218,6 +218,8 @@ class BoundedCoverage(LearningCase):
         general_request = learning.build_learning_request(store)
         self.assertEqual(general_request["input"]["evidence_ids"], [general_id])
         status = learning.collection_status(store)
+        self.assertEqual(status["schema_version"], store_api.SCHEMA_VERSION)
+        self.assertEqual(general_request["input"]["schema_version"], store_api.SCHEMA_VERSION)
         self.assertEqual(status["destinations"]["general"]["pending_style_evidence_count"], 1)
         self.assertEqual(status["destinations"]["email"]["pending_style_evidence_count"], 0)
 
@@ -319,6 +321,17 @@ class ProposalValidation(LearningCase):
             with self.subTest(observation=observation), self.assertRaisesRegex(
                     ValueError, 'trait "vocabulary" uses I, we, my or our outside quotation marks'):
                 learning.apply_learning_proposal(self.store, self.request, self.proposal(self.request, vocabulary=observation))
+
+    def test_words_opening_list_items_or_quoted_sentences_are_not_names(self):
+        sample = ("• And now the short part.\n- Then a pause.\n1. Still going.\n> But not for long.\n"
+                  "She said \"Done.\" Later the guests met Mara.")
+        store, _ = self.sample(self.fresh(), sample)
+        request = learning.build_learning_request(store)
+        traits = {"rhythm": "Short lines, and then a pause", "transitions": "Turns still land later, but softly"}
+        updated = learning.apply_learning_proposal(store, request, self.proposal(request, **traits))
+        self.assertEqual(updated["profiles"]["general"]["profile"]["traits"], traits)
+        with self.assertRaisesRegex(ValueError, r"copies a name from the evidence \('Mara'\)"):
+            learning.apply_learning_proposal(store, request, self.proposal(request, openings="Warm openings about Mara"))
 
     def test_rejections_name_the_field_and_the_rule(self):
         cases = [("devices", "Worked at a quiet pace", r"contains a fact or command \('Worked at'\)"),

@@ -1,13 +1,13 @@
 # Local commands
 
-Run Reword here with Python 3.10+. Standard library only; no model calls, network, telemetry, or API keys. `reword.py` is the primary entry point; `editor.py` and `unformula.py` remain compatible.
+Run Reword here with Python 3.10+. Standard library only; no model calls, network, telemetry, or API keys. `scripts/reword.py` is the only entry point, and it also runs under `python3 -I`.
 
-For “Build my voice,” chosen writing samples, and opt-in ongoing learning, start with [voice collections](voice-collection.md). A collection is selected with `--voice STORE` or the explicitly configured `REWORD_VOICE`; `--no-voice` skips it for one request. `--profile` still accepts a standalone compact profile. Personalized prompts use the smaller voice-first method and include only the selected compact guidance, never the saved corpus. Semantic learning uses the host model through an explicit bounded learning request, not a hidden local model call.
+For “Build my voice,” chosen writing samples, and opt-in ongoing learning, start with [voice collections](voice-collection.md). A collection is selected with `--voice STORE` or the explicitly configured `REWORD_VOICE`; `--no-voice` skips it for one request. Personalized prompts use the smaller voice-first method and include only the selected compact guidance, never the saved corpus. Semantic learning uses the host model through an explicit bounded learning request, not a hidden local model call.
 
 ```bash
-python3 scripts/reword.py prompt draft.md --destination linkedin --profile /path/to/voice.json
+python3 scripts/reword.py prompt draft.md --destination linkedin --voice /path/to/voice.store.json
 python3 scripts/reword.py prompt draft.md --destination text-message --case lowercase --punctuation light
-python3 scripts/reword.py style --destination text-message --profile /path/to/voice.json
+python3 scripts/reword.py style --destination text-message --voice /path/to/voice.store.json
 python3 scripts/reword.py focus draft.md --destination email
 python3 scripts/reword.py lint draft.md
 python3 scripts/reword.py check original.md edited.md --destination cover-letter --lock 'Starry Bodies'
@@ -28,7 +28,7 @@ The default guidance cap is 4,000 characters across instructions and all non-sou
 
 With `--destination agent`, `check` counts a literal, number, date or lock as kept when at least one mention survives, because a brief states each thing once. It still blocks a literal that disappears entirely or appears from nowhere. It adds an `efficiency` report with estimated tokens for both texts, and it asks for review when the candidate is longer than its source. See [agent readers](agents.md).
 
-Pass the same destination and style overrides to `check` to flag some clear missed conventions. These warnings never edit text or claim complete style coverage. `--profile` also applies locks and saved destination preferences. Profile writes occur only through explicitly requested `voice` commands; see [voice](voice.md).
+Pass the same destination and style overrides to `check` to flag some clear missed conventions. These warnings never edit text or claim complete style coverage. `--voice` also applies the collection's locks and saved destination preferences. Collection writes occur only through explicitly requested `voice` commands; see [voice collections](voice-collection.md).
 
 Exit codes: `0` no blocking/review findings; `1` blocking differences; `3` review needed; `2` invalid input. Editorial lint alone does not block. A `clear` result establishes neither truth nor complete meaning preservation. Numeric spelling checks are conservative. Claim alignment can miss paraphrases and raise false alarms.
 

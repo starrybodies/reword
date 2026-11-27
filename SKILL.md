@@ -21,7 +21,7 @@ supplied material; distinguish authored samples from reference inspiration.
 Create a chosen private collection outside the skill and public project folders.
 Establish ongoing consent once before automatically saving later corrections.
 
-Select a collection with `--voice STORE`, or a legacy `--profile FILE`.
+Select a collection with `--voice STORE`.
 An explicitly configured `REWORD_VOICE` selects a default; `--no-voice` bypasses it.
 For original drafting, export the selected voice card and apply it to the current
 brief's facts. Style samples never supply biography, experiences or other claims.
@@ -63,7 +63,6 @@ model prose authored evidence. Offer inspection, export, pause, forget and
 rollback controls when requested.
 
 Load [commands](references/cli.md), [contexts](references/context.md),
-[agent readers](references/agents.md),
-[legacy profiles](references/voice.md), [guidance budgets](references/budget.md),
+[agent readers](references/agents.md), [guidance budgets](references/budget.md),
 or [the editorial method](references/editorial.md) only when needed. For the
 public author pilot, follow [try Reword in your own agent](references/pilot.md).

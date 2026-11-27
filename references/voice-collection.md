@@ -7,7 +7,7 @@ Use this workflow when a writer wants to build or keep improving a saved voice. 
 1. Invite 3–5 favourite authored pieces or copy relevant to the intended work; accept one to start. Identify authorship before saving. Keep different writers in separate stores, and keep another writer's messages out of the user's authored evidence.
 2. Label each piece `authored` or `reference`, its destination, and its project or purpose. When the writer has several voices in one channel, such as two group chats or copy for two ventures, tag each piece with a [named context](context.md#named-contexts) like `chat/family` or `web-copy/acme`. `authored` means the user actually wrote it. Admired writing is `reference`; a reference-only guide describes an aspiration and cannot establish the user's own voice. A model draft, including an approved model draft, is not an authored sample.
 3. Ask once whether to remember later corrections and stated preferences. Creating a collection authorizes saving the supplied collection; it does not enable ongoing learning. Clear consent such as “Keep learning my voice” enables it. Proceed within that consent without asking permission for every update.
-4. Reuse a named existing collection when the writer chooses it. Preserve legacy profiles and separate projects whose voices differ; never silently combine authors or overwrite another profile.
+4. Reuse a named existing collection when the writer chooses it. Keep projects whose voices differ in separate collections; never silently combine authors or overwrite another collection.
 
 Run commands from the Reword directory. Use an explicitly chosen private `STORE` path and a meaningful name:
 
@@ -56,11 +56,11 @@ python3 scripts/reword.py style --destination essay --voice STORE
 python3 scripts/reword.py check draft.md candidate.md --destination essay --voice STORE
 ```
 
-`prompt`, `style`, `focus`, and `check` select compact global guidance plus the relevant destination profile. The default 4,000-character guidance cap still applies; the corpus is absent from this compiled profile. Do not reread the corpus or run refinement for each edit. `--voice STORE` and legacy `--profile FILE` are mutually exclusive. Keep legacy `voice init`, `learn`, `context`, `distill`, and `apply` available for standalone profiles; follow [voice.md](voice.md) for those commands. Use the same selected voice and destination for writing and the bounded source comparison.
+`prompt`, `style`, `focus`, and `check` select compact global guidance plus the relevant destination profile. The default 4,000-character guidance cap still applies; the corpus is absent from this compiled profile. Do not reread the corpus or run refinement for each edit. Use the same selected voice and destination for writing and the bounded source comparison.
 
 Treat the guide as context, with current instructions and source meaning controlling the edit. Preserve the original and assess factual and stylistic differences. Describe a sparse or reference-only guide honestly; do not promise that saving more pieces guarantees a match.
 
-A harness can configure `REWORD_VOICE` once to the chosen collection path. Reword then uses that compact voice by default; an explicit `--voice` or `--profile` takes priority, and `--no-voice` bypasses it for a request. Exported cards can guide original drafting in any host that accepts style instructions. Configure a default only when the writer asks to use it there. Collections are private user files, not assets to publish with Reword or a project.
+A harness can configure `REWORD_VOICE` once to the chosen collection path. Reword then uses that compact voice by default; an explicit `--voice` takes priority, and `--no-voice` bypasses it for a request. Exported cards can guide original drafting in any host that accepts style instructions. Configure a default only when the writer asks to use it there. Collections are private user files, not assets to publish with Reword or a project.
 
 ## Keep control visible
 

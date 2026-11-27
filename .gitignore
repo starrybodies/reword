@@ -32,7 +32,6 @@ drafts/
 feedback/
 *voice*.json
 *profile*.json
-!assets/voice.example.json
 /draft.*
 /original.*
 /candidate.*
